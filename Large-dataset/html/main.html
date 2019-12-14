@@ -1,0 +1,412 @@
+
+<!DOCTYPE html
+  PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html><head>
+      <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+   <!--
+This HTML was auto-generated from MATLAB code.
+To make changes, update the MATLAB code and republish this document.
+      --><title>main</title><meta name="generator" content="MATLAB 9.6"><link rel="schema.DC" href="http://purl.org/dc/elements/1.1/"><meta name="DC.date" content="2019-12-10"><meta name="DC.source" content="main.m"><style type="text/css">
+html,body,div,span,applet,object,iframe,h1,h2,h3,h4,h5,h6,p,blockquote,pre,a,abbr,acronym,address,big,cite,code,del,dfn,em,font,img,ins,kbd,q,s,samp,small,strike,strong,sub,sup,tt,var,b,u,i,center,dl,dt,dd,ol,ul,li,fieldset,form,label,legend,table,caption,tbody,tfoot,thead,tr,th,td{margin:0;padding:0;border:0;outline:0;font-size:100%;vertical-align:baseline;background:transparent}body{line-height:1}ol,ul{list-style:none}blockquote,q{quotes:none}blockquote:before,blockquote:after,q:before,q:after{content:'';content:none}:focus{outine:0}ins{text-decoration:none}del{text-decoration:line-through}table{border-collapse:collapse;border-spacing:0}
+
+html { min-height:100%; margin-bottom:1px; }
+html body { height:100%; margin:0px; font-family:Arial, Helvetica, sans-serif; font-size:10px; color:#000; line-height:140%; background:#fff none; overflow-y:scroll; }
+html body td { vertical-align:top; text-align:left; }
+
+h1 { padding:0px; margin:0px 0px 25px; font-family:Arial, Helvetica, sans-serif; font-size:1.5em; color:#d55000; line-height:100%; font-weight:normal; }
+h2 { padding:0px; margin:0px 0px 8px; font-family:Arial, Helvetica, sans-serif; font-size:1.2em; color:#000; font-weight:bold; line-height:140%; border-bottom:1px solid #d6d4d4; display:block; }
+h3 { padding:0px; margin:0px 0px 5px; font-family:Arial, Helvetica, sans-serif; font-size:1.1em; color:#000; font-weight:bold; line-height:140%; }
+
+a { color:#005fce; text-decoration:none; }
+a:hover { color:#005fce; text-decoration:underline; }
+a:visited { color:#004aa0; text-decoration:none; }
+
+p { padding:0px; margin:0px 0px 20px; }
+img { padding:0px; margin:0px 0px 20px; border:none; }
+p img, pre img, tt img, li img, h1 img, h2 img { margin-bottom:0px; } 
+
+ul { padding:0px; margin:0px 0px 20px 23px; list-style:square; }
+ul li { padding:0px; margin:0px 0px 7px 0px; }
+ul li ul { padding:5px 0px 0px; margin:0px 0px 7px 23px; }
+ul li ol li { list-style:decimal; }
+ol { padding:0px; margin:0px 0px 20px 0px; list-style:decimal; }
+ol li { padding:0px; margin:0px 0px 7px 23px; list-style-type:decimal; }
+ol li ol { padding:5px 0px 0px; margin:0px 0px 7px 0px; }
+ol li ol li { list-style-type:lower-alpha; }
+ol li ul { padding-top:7px; }
+ol li ul li { list-style:square; }
+
+.content { font-size:1.2em; line-height:140%; padding: 20px; }
+
+pre, code { font-size:12px; }
+tt { font-size: 1.2em; }
+pre { margin:0px 0px 20px; }
+pre.codeinput { padding:10px; border:1px solid #d3d3d3; background:#f7f7f7; }
+pre.codeoutput { padding:10px 11px; margin:0px 0px 20px; color:#4c4c4c; }
+pre.error { color:red; }
+
+@media print { pre.codeinput, pre.codeoutput { word-wrap:break-word; width:100%; } }
+
+span.keyword { color:#0000FF }
+span.comment { color:#228B22 }
+span.string { color:#A020F0 }
+span.untermstring { color:#B20000 }
+span.syscmd { color:#B28C00 }
+
+.footer { width:auto; padding:10px 0px; margin:25px 0px 0px; border-top:1px dotted #878787; font-size:0.8em; line-height:140%; font-style:italic; color:#878787; text-align:left; float:none; }
+.footer p { margin:0px; }
+.footer a { color:#878787; }
+.footer a:hover { color:#878787; text-decoration:underline; }
+.footer a:visited { color:#878787; }
+
+table th { padding:7px 5px; text-align:left; vertical-align:middle; border: 1px solid #d6d4d4; font-weight:bold; }
+table td { padding:7px 5px; text-align:left; vertical-align:top; border:1px solid #d6d4d4; }
+
+
+
+
+
+  </style></head><body><div class="content"><h2>Contents</h2><div><ul><li><a href="#2">Import the GPGAA data to MATLAB as a matrix</a></li><li><a href="#3">Using GPGGA standard:</a></li><li><a href="#4">Processing IMU data</a></li><li><a href="#5">Kalman filter setup and data processing</a></li></ul></div><pre class="codeinput"><span class="comment">% MATLAB-R2019a version</span>
+close <span class="string">all</span>
+clc
+</pre><h2 id="2">Import the GPGAA data to MATLAB as a matrix</h2><pre class="codeinput">format <span class="string">longG</span>
+GPGGAData = readmatrix(<span class="string">'gps-GPGGA-data.txt'</span>, <span class="string">'Delimiter'</span>, <span class="string">','</span>);
+IMUData = readmatrix(<span class="string">'IMU_data.txt'</span>, <span class="string">'Delimiter'</span>, {<span class="string">':'</span>,<span class="string">','</span>});
+
+<span class="comment">% sampling time for each sensor and the corresponding timestamp for each</span>
+<span class="comment">% sensor measurement.</span>
+sampleFreqGPS = 1;
+sampleFreqIMU = 11;
+deltaIMU = 1/sampleFreqIMU;
+deltaGPS = 1/sampleFreqGPS;
+</pre><h2 id="3">Using GPGGA standard:</h2><p>$--GGA,hhmmss.ss,llll.ll,a,yyyyy.yy,a,x,xx,x.x,x.x,M,x.x,M,x.x,xxxx where lld ll.llll' N, and yyd yy.yyyy' W, represent latitude and longitude. Convert the /degree/minute format to /degrees If the num is 3713.9212, then GPGGA_minute = 13.9212 shift the decimal to left by 2 places</p><pre class="codeinput">latDecShift = GPGGAData(:,3)*0.01;
+longDecShift = GPGGAData(:,5)*0.01;
+
+<span class="comment">% Calculating the minute value using the shifted decimal data and</span>
+<span class="comment">% multiplying the value by 100 to minute value in yy.yyyy format</span>
+latMinute = (latDecShift - floor(latDecShift)) * 100;
+longMinute = (longDecShift - floor(longDecShift)) * 100;
+
+<span class="comment">% Calculating the degree value, yyd + (yy.yyyy/60)</span>
+latDeg = (floor(latDecShift) + (latMinute(:)/60)).*GPGGAData(:,4);
+longDeg = (floor(longDecShift) + (longMinute(:)/60)).*GPGGAData(:,6);
+
+<span class="comment">% Originial GPS data in latitude and longitude format. Slicing the data</span>
+<span class="comment">% required for sensor uncertainty</span>
+latStatic = latDeg(1:10,1);
+longStatic = longDeg(1:10,1);
+
+<span class="comment">% Slicing the data required for the actual motion</span>
+latMotion = latDeg(11:end,1);
+longMotion = longDeg(1:end,1);
+
+<span class="comment">% Converting latitude and longitude data to x-y coordinate frame using the</span>
+<span class="comment">% radius of the earth and the appropriate conversions to x and y axis (m)</span>
+[deg2mx, deg2my] = deg2m(latDeg(1,1));
+xInit = 1*deg2mx*(longDeg(1,1));
+yInit = deg2my*(latDeg(1,1));
+
+xCoord = (longDeg*deg2mx) - xInit;
+yCoord = (latDeg*deg2my) - yInit;
+
+<span class="comment">% Data where no motion occurred (stationary)</span>
+xCoordStatic = xCoord(1:10,1);
+yCoordStatic = yCoord(1:10,1);
+
+<span class="comment">% Data for the actual motion</span>
+xCoordMotion = xCoord(11:end,1);
+yCoordMotion = yCoord(11:end,1);
+
+<span class="comment">% Calculating the current velocity of the cart using the data update of the</span>
+<span class="comment">% GPS sensor. Here data update rate is 1Hz.</span>
+currVelX(size(xCoordMotion,1),1) = 0;
+currVelY(size(xCoordMotion,1),1) = 0;
+
+<span class="keyword">for</span> i = 1:size(xCoordMotion,1)-1
+    currVelX(i,1) = (xCoordMotion(i+1,1) - xCoordMotion(i,1))/deltaGPS;
+    currVelY(i,1) = (yCoordMotion(i+1,1) - yCoordMotion(i,1))/deltaGPS;
+<span class="keyword">end</span>
+</pre><h2 id="4">Processing IMU data</h2><p>The first 3 and last 3 columns reperesents the gyrometer and accelerometer data in (x,y,z) format respectively</p><pre class="codeinput">IMUData = IMUData(:, all(~isnan(IMUData)));
+IMUDataAvg = mean(IMUData(1:120,:));
+
+<span class="comment">% Slicing the IMUData for the actual motion</span>
+IMUDataMotion = IMUData(120:end,:);
+
+<span class="comment">% Converting the gyrometer data from deg/sec to rad/sec</span>
+IMUDataMotion(:,1:3) = IMUDataMotion(:,1:3)*(3.14/180);
+
+<span class="comment">% Gyrometer sensor</span>
+gyroRad = IMUDataMotion(:,1:3)/sampleFreqIMU;
+gyroX = IMUDataMotion(:,1);
+gyroY = IMUDataMotion(:,2);
+gyroZ = IMUDataMotion(:,3);
+
+<span class="comment">% Accelerometer sensor</span>
+accelG = 9.8;
+accelX = (IMUDataMotion(:,4)/IMUDataAvg(1,6))*accelG;
+accelY = (IMUDataMotion(:,5)/IMUDataAvg(1,6))*accelG;
+accelZ = (IMUDataMotion(:,6)/IMUDataAvg(1,6))*accelG;
+</pre><h2 id="5">Kalman filter setup and data processing</h2><p>Defining the state transition matrix, here tempA defines the matrix for the state transition along X and Y, combining both of them gives the state transition matrix.</p><pre class="codeinput">tempA = [1 deltaIMU 0.5*(deltaIMU^2); 0 1 deltaIMU; 0 0 1];
+A = blkdiag(tempA, tempA);
+
+<span class="comment">% Measurement matrix</span>
+C = eye(6);
+C(2,2) = 0;
+C(5,5) = 0;
+
+<span class="comment">% Initial state of the cart and Initializing covariance, measurement noise</span>
+<span class="comment">% covariance and process noise covariance matrix respectively.</span>
+xkmin = zeros(6,1);
+P = (100^2)*eye(6);
+R = 0.025*eye(6);
+Q = 10*eye(6);
+
+<span class="comment">% Total number of iterations as per the sensor data</span>
+N = size(IMUDataMotion,1);
+
+<span class="comment">% Error matrix for the estimates</span>
+xDelta(N,1:6) = 0;
+
+<span class="comment">% Definign timestamp for each recorded measurement for either of the sensor</span>
+<span class="comment">% using their defined sample rate.</span>
+tIMU = 1:deltaIMU:size(latMotion,1);
+tGPS = 1:deltaGPS:size(latMotion,1);
+
+<span class="comment">% ouput estimates matrix for position, velocity and acceleration along x</span>
+<span class="comment">% and y direction.</span>
+estOut(N,1:6) = 0;
+
+<span class="comment">% GPS data counter for comparing the timestamp of the data recorded using</span>
+<span class="comment">% IMU and the GPS sensor</span>
+ctrGPS = 1;
+
+<span class="comment">% Iterating over the collected datapoints using GPS and IMU sensor</span>
+<span class="keyword">for</span> k = 1:N
+
+    <span class="comment">% Prediction step for the kalman filter.</span>
+    [xk, P] = predictionStep(A, xkmin, P, Q);
+
+    <span class="comment">% updating previous state vector. This vector will get further updated</span>
+    <span class="comment">% if GPS sensor is used.</span>
+    xkmin = xk;
+
+    <span class="comment">% If GPS data is available then update the Kalman gain</span>
+    <span class="keyword">if</span> tIMU(k) == tGPS(ctrGPS)
+
+        <span class="comment">% Coordinate frame transformation for the accelerometer output</span>
+        <span class="comment">% using the gyrometer data.</span>
+        RotMat = frameTrans(gyroRad(k,1), gyroRad(k,2), gyroRad(k,3));
+        newAccel = RotMat*[accelX(k,1) accelY(k,1) accelZ(k,1)]';
+        z = [xCoordMotion(ctrGPS,1) 0 newAccel(1) yCoordMotion(ctrGPS,1) 0 newAccel(2)]';
+
+        <span class="comment">% Measurement update for the Kalman filter</span>
+        [y, K, P, xkk] = measurementUpdate(z, C, R, P, xk);
+
+        <span class="comment">% Calculating the error between the prediction and the measurement</span>
+        <span class="comment">% update</span>
+        xDelta(k,:) = (xkk - xk)';
+
+        <span class="comment">% Update GPS data counter</span>
+        ctrGPS = ctrGPS + 1;
+
+        <span class="comment">% Updating previous measurement</span>
+        xkmin = xkk;
+
+        <span class="comment">% Updating the error covariance matrix</span>
+        Q = xDelta(k,:)'*xDelta(k,:);
+
+    <span class="keyword">end</span>
+
+    <span class="comment">% Storing the measured estiamtes to the output matrix</span>
+    estOut(k,:) = xkmin';
+
+<span class="keyword">end</span>
+
+<span class="comment">% Plot the curves for cart trajectory, velocity and acceleration using the</span>
+<span class="comment">% raw sensor data and the kalman filter estimates</span>
+plotTraj(estOut(:,1), estOut(:,4), xCoordMotion, yCoordMotion);
+plotVelocity(estOut(:,2), estOut(:,5), currVelX, currVelY);
+plotAccel(estOut(:,3), estOut(:,6), accelX, accelY);
+</pre><img vspace="5" hspace="5" src="main_01.png" alt=""> <img vspace="5" hspace="5" src="main_02.png" alt=""> <img vspace="5" hspace="5" src="main_03.png" alt=""> <img vspace="5" hspace="5" src="main_04.png" alt=""> <img vspace="5" hspace="5" src="main_05.png" alt=""> <p class="footer"><br><a href="https://www.mathworks.com/products/matlab/">Published with MATLAB&reg; R2019a</a><br></p></div><!--
+##### SOURCE BEGIN #####
+% MATLAB-R2019a version  
+close all
+clc
+
+%% Import the GPGAA data to MATLAB as a matrix
+format longG
+GPGGAData = readmatrix('gps-GPGGA-data.txt', 'Delimiter', ',');
+IMUData = readmatrix('IMU_data.txt', 'Delimiter', {':',','});
+
+% sampling time for each sensor and the corresponding timestamp for each
+% sensor measurement.
+sampleFreqGPS = 1;
+sampleFreqIMU = 11;
+deltaIMU = 1/sampleFreqIMU;
+deltaGPS = 1/sampleFreqGPS;
+
+%% Using GPGGA standard:
+% $REPLACE_WITH_DASH_DASHGGA,hhmmss.ss,llll.ll,a,yyyyy.yy,a,x,xx,x.x,x.x,M,x.x,M,x.x,xxxx
+% where lld ll.llll' N, and yyd yy.yyyy' W, represent latitude and
+% longitude. Convert the /degree/minute format to /degrees
+% If the num is 3713.9212, then GPGGA_minute = 13.9212
+% shift the decimal to left by 2 places
+latDecShift = GPGGAData(:,3)*0.01;
+longDecShift = GPGGAData(:,5)*0.01; 
+
+% Calculating the minute value using the shifted decimal data and
+% multiplying the value by 100 to minute value in yy.yyyy format
+latMinute = (latDecShift - floor(latDecShift)) * 100;
+longMinute = (longDecShift - floor(longDecShift)) * 100;
+
+% Calculating the degree value, yyd + (yy.yyyy/60)
+latDeg = (floor(latDecShift) + (latMinute(:)/60)).*GPGGAData(:,4);
+longDeg = (floor(longDecShift) + (longMinute(:)/60)).*GPGGAData(:,6);
+
+% Originial GPS data in latitude and longitude format. Slicing the data 
+% required for sensor uncertainty
+latStatic = latDeg(1:10,1);
+longStatic = longDeg(1:10,1);
+
+% Slicing the data required for the actual motion
+latMotion = latDeg(11:end,1);
+longMotion = longDeg(1:end,1);
+
+% Converting latitude and longitude data to x-y coordinate frame using the
+% radius of the earth and the appropriate conversions to x and y axis (m)
+[deg2mx, deg2my] = deg2m(latDeg(1,1));
+xInit = 1*deg2mx*(longDeg(1,1));
+yInit = deg2my*(latDeg(1,1));
+
+xCoord = (longDeg*deg2mx) - xInit;
+yCoord = (latDeg*deg2my) - yInit;
+
+% Data where no motion occurred (stationary)
+xCoordStatic = xCoord(1:10,1);
+yCoordStatic = yCoord(1:10,1);
+
+% Data for the actual motion
+xCoordMotion = xCoord(11:end,1);
+yCoordMotion = yCoord(11:end,1);
+
+% Calculating the current velocity of the cart using the data update of the
+% GPS sensor. Here data update rate is 1Hz.
+currVelX(size(xCoordMotion,1),1) = 0;
+currVelY(size(xCoordMotion,1),1) = 0;
+
+for i = 1:size(xCoordMotion,1)-1
+    currVelX(i,1) = (xCoordMotion(i+1,1) - xCoordMotion(i,1))/deltaGPS; 
+    currVelY(i,1) = (yCoordMotion(i+1,1) - yCoordMotion(i,1))/deltaGPS;
+end
+
+%% Processing IMU data
+% The first 3 and last 3 columns reperesents the gyrometer and accelerometer 
+% data in (x,y,z) format respectively
+IMUData = IMUData(:, all(~isnan(IMUData)));
+IMUDataAvg = mean(IMUData(1:120,:));
+
+% Slicing the IMUData for the actual motion
+IMUDataMotion = IMUData(120:end,:);
+
+% Converting the gyrometer data from deg/sec to rad/sec
+IMUDataMotion(:,1:3) = IMUDataMotion(:,1:3)*(3.14/180);
+
+% Gyrometer sensor
+gyroRad = IMUDataMotion(:,1:3)/sampleFreqIMU;
+gyroX = IMUDataMotion(:,1);
+gyroY = IMUDataMotion(:,2);
+gyroZ = IMUDataMotion(:,3);
+
+% Accelerometer sensor
+accelG = 9.8;
+accelX = (IMUDataMotion(:,4)/IMUDataAvg(1,6))*accelG;
+accelY = (IMUDataMotion(:,5)/IMUDataAvg(1,6))*accelG;
+accelZ = (IMUDataMotion(:,6)/IMUDataAvg(1,6))*accelG;
+
+%% Kalman filter setup and data processing
+% Defining the state transition matrix, here tempA defines the matrix for
+% the state transition along X and Y, combining both of them gives the
+% state transition matrix.
+tempA = [1 deltaIMU 0.5*(deltaIMU^2); 0 1 deltaIMU; 0 0 1];
+A = blkdiag(tempA, tempA);
+
+% Measurement matrix
+C = eye(6);
+C(2,2) = 0;
+C(5,5) = 0;
+
+% Initial state of the cart and Initializing covariance, measurement noise
+% covariance and process noise covariance matrix respectively.
+xkmin = zeros(6,1);
+P = (100^2)*eye(6);                                          
+R = 0.025*eye(6);
+Q = 10*eye(6); 
+
+% Total number of iterations as per the sensor data
+N = size(IMUDataMotion,1);
+
+% Error matrix for the estimates
+xDelta(N,1:6) = 0; 
+
+% Definign timestamp for each recorded measurement for either of the sensor
+% using their defined sample rate.
+tIMU = 1:deltaIMU:size(latMotion,1);
+tGPS = 1:deltaGPS:size(latMotion,1);
+
+% ouput estimates matrix for position, velocity and acceleration along x
+% and y direction.
+estOut(N,1:6) = 0;
+
+% GPS data counter for comparing the timestamp of the data recorded using 
+% IMU and the GPS sensor 
+ctrGPS = 1;
+
+% Iterating over the collected datapoints using GPS and IMU sensor
+for k = 1:N
+    
+    % Prediction step for the kalman filter. 
+    [xk, P] = predictionStep(A, xkmin, P, Q);
+    
+    % updating previous state vector. This vector will get further updated
+    % if GPS sensor is used.
+    xkmin = xk;
+    
+    % If GPS data is available then update the Kalman gain
+    if tIMU(k) == tGPS(ctrGPS)
+        
+        % Coordinate frame transformation for the accelerometer output
+        % using the gyrometer data.
+        RotMat = frameTrans(gyroRad(k,1), gyroRad(k,2), gyroRad(k,3));
+        newAccel = RotMat*[accelX(k,1) accelY(k,1) accelZ(k,1)]';
+        z = [xCoordMotion(ctrGPS,1) 0 newAccel(1) yCoordMotion(ctrGPS,1) 0 newAccel(2)]';
+        
+        % Measurement update for the Kalman filter
+        [y, K, P, xkk] = measurementUpdate(z, C, R, P, xk);
+
+        % Calculating the error between the prediction and the measurement
+        % update
+        xDelta(k,:) = (xkk - xk)';
+        
+        % Update GPS data counter
+        ctrGPS = ctrGPS + 1;
+        
+        % Updating previous measurement
+        xkmin = xkk;
+    
+        % Updating the error covariance matrix
+        Q = xDelta(k,:)'*xDelta(k,:);
+    
+    end
+    
+    % Storing the measured estiamtes to the output matrix 
+    estOut(k,:) = xkmin';
+
+end
+
+% Plot the curves for cart trajectory, velocity and acceleration using the 
+% raw sensor data and the kalman filter estimates 
+plotTraj(estOut(:,1), estOut(:,4), xCoordMotion, yCoordMotion);
+plotVelocity(estOut(:,2), estOut(:,5), currVelX, currVelY);
+plotAccel(estOut(:,3), estOut(:,6), accelX, accelY);
+##### SOURCE END #####
+--></body></html>
